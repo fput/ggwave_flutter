@@ -36,13 +36,11 @@ void init() => _bindings.initNative();
 
 void deinit() => _bindings.deinit();
 
-Uint8List? convertDataToAudio(String data,
-    {GGWaveTxProtocolId protocol =
-        GGWaveTxProtocolId.GGWAVE_TX_PROTOCOL_AUDIBLE_FAST}) {
-  var dataPointer = data.toNativeUtf8().cast<Int8>();
+Uint8List? _convertDataToAudio(
+    Pointer<Int8> dataPointer, int dataLength, GGWaveTxProtocolId protocol) {
   Pointer<Pointer<Int8>> out = malloc();
   int length = _bindings.convertDataToAudio(
-      dataPointer, data.length, out, protocol.index);
+      dataPointer, dataLength, out, protocol.index);
   if (length < 0) {
     malloc.free(dataPointer);
     malloc.free(out.value);
@@ -57,6 +55,25 @@ Uint8List? convertDataToAudio(String data,
   malloc.free(out.value);
   malloc.free(out);
   return audioData;
+}
+
+Uint8List? convertBytesToAudio(Uint8List bytes,
+    {GGWaveTxProtocolId protocol =
+        GGWaveTxProtocolId.GGWAVE_TX_PROTOCOL_AUDIBLE_FAST}) {
+  Pointer<Int8> dataPointer = malloc.allocate(bytes.length);
+  for (int i = 0; i < bytes.length; i++) {
+    dataPointer[i] = bytes[i];
+  }
+  var result = _convertDataToAudio(dataPointer, bytes.length, protocol);
+  malloc.free(dataPointer);
+  return result;
+}
+
+Uint8List? convertDataToAudio(String data,
+    {GGWaveTxProtocolId protocol =
+        GGWaveTxProtocolId.GGWAVE_TX_PROTOCOL_AUDIBLE_FAST}) {
+  var dataPointer = data.toNativeUtf8().cast<Int8>();
+  return _convertDataToAudio(dataPointer, data.length, protocol);
 }
 
 String? convertAudioToData(Uint8List audio) =>
@@ -81,7 +98,29 @@ String? convertAudioToDataOneShot(Uint8List audio, {List<int>? protocols}) {
   return _convertAudioToData(audio, _bindings.processCaptureDataLocal);
 }
 
-String? _convertAudioToData(
+Uint8List? convertAudioToBytes(Uint8List audio) =>
+    _convertAudioToBytes(audio, _bindings.processCaptureData);
+Uint8List? convertAudioToBytesOneShot(Uint8List audio, {List<int>? protocols}) {
+  if (protocols != null) {
+    Pointer<Int8> protocolPointer = malloc(protocols.length);
+    protocolPointer.asTypedList(protocols.length).setAll(0, protocols);
+    var res = _convertAudioToBytes(
+        audio,
+        (
+          Pointer<Int8> payload,
+          int payloadSize,
+          Pointer<Pointer<Int8>> out,
+        ) =>
+            _bindings.processCaptureDataLocalwithProtocols(
+                protocolPointer, payload, payloadSize, out));
+    malloc.free(protocolPointer);
+    return res;
+  }
+
+  return _convertAudioToBytes(audio, _bindings.processCaptureDataLocal);
+}
+
+Uint8List? _convertAudioToBytes(
   Uint8List audio,
   int Function(
     Pointer<Int8> payload,
@@ -96,17 +135,36 @@ String? _convertAudioToData(
   dataPointer.asTypedList(audio.length).setAll(0, audio);
   int length = converter(dataPointer, audio.length, out);
   // print(size);
-  String? data;
+  Uint8List? bytes;
   if (length > 0) {
-    data = out.value.cast<Utf8>().toDartString(length: length);
+    bytes = Uint8List(length);
+    for (int i = 0; i < length; i++) {
+      bytes[i] = out.value[i];
+    }
   } else if (length < 0) {
-    data = "";
+    bytes = Uint8List(0);
     dev.log("error during decoding: $length", error: null);
   }
   malloc.free(dataPointer);
   malloc.free(out.value);
   malloc.free(out);
-  return data;
+  return bytes;
+}
+
+String? _convertAudioToData(
+  Uint8List audio,
+  int Function(
+    Pointer<Int8> payload,
+    int payloadSize,
+    Pointer<Pointer<Int8>> out,
+  )
+      converter,
+) {
+  var bytes = _convertAudioToBytes(audio, converter);
+  if (bytes == null) {
+    return null;
+  }
+  return String.fromCharCodes(bytes);
 }
 
 void setRxProtocolID(GGWaveTxProtocolId? protocolID) {
