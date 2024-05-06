@@ -40,7 +40,7 @@ Uint8List? _convertDataToAudio(
     Pointer<Int8> dataPointer, int dataLength, GGWaveTxProtocolId protocol) {
   Pointer<Pointer<Int8>> out = malloc();
   int length = _bindings.convertDataToAudio(
-      dataPointer, dataLength, out, protocol.index);
+      dataPointer.cast(), dataLength, out.cast(), protocol.index);
   if (length < 0) {
     malloc.free(dataPointer);
     malloc.free(out.value);
@@ -85,12 +85,12 @@ String? convertAudioToDataOneShot(Uint8List audio, {List<int>? protocols}) {
     var res = _convertAudioToData(
         audio,
         (
-          Pointer<Int8> payload,
+          Pointer<Char> payload,
           int payloadSize,
-          Pointer<Pointer<Int8>> out,
+          Pointer<Pointer<Char>> out,
         ) =>
             _bindings.processCaptureDataLocalwithProtocols(
-                protocolPointer, payload, payloadSize, out));
+                protocolPointer.cast(), payload, payloadSize, out));
     malloc.free(protocolPointer);
     return res;
   }
@@ -107,12 +107,12 @@ Uint8List? convertAudioToBytesOneShot(Uint8List audio, {List<int>? protocols}) {
     var res = _convertAudioToBytes(
         audio,
         (
-          Pointer<Int8> payload,
+          Pointer<Char> payload,
           int payloadSize,
-          Pointer<Pointer<Int8>> out,
+          Pointer<Pointer<Char>> out,
         ) =>
             _bindings.processCaptureDataLocalwithProtocols(
-                protocolPointer, payload, payloadSize, out));
+                protocolPointer.cast(), payload, payloadSize, out));
     malloc.free(protocolPointer);
     return res;
   }
@@ -123,9 +123,9 @@ Uint8List? convertAudioToBytesOneShot(Uint8List audio, {List<int>? protocols}) {
 Uint8List? _convertAudioToBytes(
   Uint8List audio,
   int Function(
-    Pointer<Int8> payload,
+    Pointer<Char> payload,
     int payloadSize,
-    Pointer<Pointer<Int8>> out,
+    Pointer<Pointer<Char>> out,
   )
       converter,
 ) {
@@ -133,7 +133,7 @@ Uint8List? _convertAudioToBytes(
   // print(audio.length);
   Pointer<Pointer<Int8>> out = malloc();
   dataPointer.asTypedList(audio.length).setAll(0, audio);
-  int length = converter(dataPointer, audio.length, out);
+  int length = converter(dataPointer.cast(), audio.length, out.cast());
   // print(size);
   Uint8List? bytes;
   if (length > 0) {
@@ -154,9 +154,9 @@ Uint8List? _convertAudioToBytes(
 String? _convertAudioToData(
   Uint8List audio,
   int Function(
-    Pointer<Int8> payload,
+    Pointer<Char> payload,
     int payloadSize,
-    Pointer<Pointer<Int8>> out,
+    Pointer<Pointer<Char>> out,
   )
       converter,
 ) {
@@ -201,7 +201,7 @@ void setRxProtocolIDs({
   settingsPointer
       .asTypedList(protocolSettings.length)
       .setAll(0, protocolSettings);
-  _bindings.setRxProtocolIDs(settingsPointer);
+  _bindings.setRxProtocolIDs(settingsPointer.cast());
   malloc.free(settingsPointer);
 }
 
