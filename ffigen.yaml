@@ -17,3 +17,9 @@ preamble: |
 comments:
   style: any
   length: full
+# In case of errors, add LLVM path here:
+# llvm-path:
+#   - '/opt/homebrew/opt/llvm' # installed via Homebrew (macOS)
+compiler-opts:
+  - '-Wno-nullability-completeness' # ignore warning "pointer is missing a nullability type specifier"
+  - '-Wno-availability' # ignore warnings about unknown platform 'visionOS'
